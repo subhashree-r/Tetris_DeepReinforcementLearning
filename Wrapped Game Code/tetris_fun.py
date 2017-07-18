@@ -4,6 +4,7 @@
 
 import random, time, pygame, sys
 from pygame.locals import *
+import copy
 
 FPS = 25
 WINDOWWIDTH = 640
@@ -42,7 +43,57 @@ assert len(COLORS) == len(LIGHTCOLORS) # each color must have light color
 
 TEMPLATEWIDTH = 5
 TEMPLATEHEIGHT = 5
-
+I1_SHAPE_TEMPLATE = [['..O..',
+                     '..O..',
+                     '..O..',
+                     '..O..',
+                     '.....'],
+                    ['.....',
+                     '.....',
+                     'OOOO.',
+                     '.....',
+                     '.....']]
+I2_SHAPE_TEMPLATE = [['..O..',
+                     '..O..',
+                     '.....',
+                     '.....',
+                     '.....'],
+                    ['.....',
+                     '.....',
+                     'OO...',
+                     '.....',
+                     '.....']]
+I3_SHAPE_TEMPLATE = [['..O..',
+                     '..O..',
+                     '..O..',
+                     '.....',
+                     '.....'],
+                    ['.....',
+                     '.....',
+                     'OOO..',
+                     '.....',
+                     '.....']]
+I4_SHAPE_TEMPLATE = [['.OO..',
+                     '.OO...',
+                     '.....',
+                     '.....',
+                     '.....'],
+                    ['.....',
+                     '.....',
+                     'OO...',
+                     'OO...',
+                     '.....']]
+I5_SHAPE_TEMPLATE = [['..OO.',
+                     '..OO.',
+                     '..OO.',
+                     '.....',
+                     '.....'],
+                    ['.....',
+                     'OOO..',
+                     'OOO..',
+                     '.....',
+                     '.....']]
+"""
 S_SHAPE_TEMPLATE = [['..OO.',
                      '.OO..',
                      '.....',
@@ -152,7 +203,8 @@ PIECES = {'S': S_SHAPE_TEMPLATE,
           'I': I_SHAPE_TEMPLATE,
           'O': O_SHAPE_TEMPLATE,
           'T': T_SHAPE_TEMPLATE}
-
+"""
+PIECES = { 'I1': I1_SHAPE_TEMPLATE, 'I2': I2_SHAPE_TEMPLATE, 'I3': I3_SHAPE_TEMPLATE,'I4': I4_SHAPE_TEMPLATE,'I5': I5_SHAPE_TEMPLATE}
 
 class GameState:
     def __init__(self):
@@ -214,6 +266,7 @@ class GameState:
         
         reward = 0
         terminal = False
+            #reward1=0
         
         #none is 100000, left is 010000, up is 001000, right is 000100, space is 000010, q is 000001
         if self.fallingPiece == None:
@@ -320,7 +373,10 @@ class GameState:
         pygame.display.update()
 
         if cleared > 0:
-            reward = 100 * cleared
+            reward = 100 * cleared+self.getReward()
+        else:
+            reward+=self.getReward()
+        
 
         image_data = pygame.surfarray.array3d(pygame.display.get_surface())
         return image_data, reward, terminal
@@ -531,6 +587,23 @@ class GameState:
                 if shapeToDraw[y][x] != BLANK:
                     self.drawBox(None, None, piece['color'], pixelx + (x * BOXSIZE), pixely + (y * BOXSIZE))
 
+    def getHoles(self):
+            grid = copy.deepcopy(self.board)
+    # use sets to avoid dups
+            holes = set()
+            # first for loop finds initial underhangs
+            for i in range(len(grid) - 1, 0, -1): # row
+                for j in range(len(grid[i])): # col
+                    if i - 1 >= 0 and grid[i][j] is None and grid[i-1][j] is not None:
+                        holes.add((i, j))
+            # new copy because can't change set while iterating.
+            all_holes = copy.deepcopy(holes)
+            # for each find earlier keep digging down to see how many holes additionally there are
+            for i, j in holes:
+                while i + 1 < len(grid) and grid[i + 1][j] is None:
+                    all_holes.add((i + 1, j))
+                    i += 1
+            return len(all_holes)
 
     def drawNextPiece(self):
         # draw the "next" text

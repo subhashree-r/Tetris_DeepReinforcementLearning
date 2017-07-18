@@ -9,13 +9,15 @@ import dummy_game
 import tetris_fun as game
 import random
 import numpy as np
+import numpy as np
+import matplotlib.pyplot as plt
 from collections import deque
 
 GAME = 'tetris' # the name of the game being played for log files
 ACTIONS = 6 # number of valid actions
 GAMMA = 0.99 # decay rate of past observations
-OBSERVE = 500. # timesteps to observe before training
-EXPLORE = 500. # frames over which to anneal epsilon
+OBSERVE = 1000. # timesteps to observe before training
+EXPLORE = 1500. # frames over which to anneal epsilon
 FINAL_EPSILON = 0.05 # final value of epsilon
 INITIAL_EPSILON = 1.0 # starting value of epsilon
 REPLAY_MEMORY = 590000 # number of previous transitions to remember
@@ -73,20 +75,26 @@ def createNetwork():
 
     # readout layer
     readout = tf.matmul(h_fc1, W_fc2) + b_fc2
+    
+    tf.Summary
 
     return s, readout, h_fc1
-
+costPlot=[]
 def trainNetwork(s, readout, h_fc1, sess):
     # define the cost function
     a = tf.placeholder("float", [None, ACTIONS])
+    global costPlot
+    plt.axis([0,10
     y = tf.placeholder("float", [None])
-    readout_action = tf.reduce_sum(tf.mul(readout, a), reduction_indices = 1)
+    readout_action = tf.reduce_sum(tf.multiply(readout, a), reduction_indices = 1)
     cost = tf.reduce_mean(tf.square(y - readout_action))
+    #print(cost)
+    #costPlot.append(cost)
     train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
 
     # open up a game state to communicate with emulator
     game_state = game.GameState()
-
+#########################################Observing####################################################
     # store the previous observations in replay memory
     D = deque()
 
@@ -136,7 +144,9 @@ def trainNetwork(s, readout, h_fc1, sess):
             x_t1 = cv2.cvtColor(cv2.resize(x_t1_col, (80, 80)), cv2.COLOR_BGR2GRAY)
             ret, x_t1 = cv2.threshold(x_t1,1,255,cv2.THRESH_BINARY)
             x_t1 = np.reshape(x_t1, (80, 80, 1))
+           # print("shape",x_t1.shape())
             s_t1 = np.append(x_t1, s_t[:,:,0:3], axis = 2)
+            #print("shapeoofState",s_t1)
 
             # store the transition in D
             D.append((s_t, a_t, r_t, s_t1, terminal))
@@ -164,18 +174,20 @@ def trainNetwork(s, readout, h_fc1, sess):
                     y_batch.append(r_batch[i] + GAMMA * np.max(readout_j1_batch[i]))
 
             # perform gradient step
-            train_step.run(feed_dict = {
+            _,error_value=sess.run([train_step,cost],feed_dict = {
                 y : y_batch,
                 a : a_batch,
                 s : s_j_batch})
+            print("cost",error_value)
 
         # update the old values
         s_t = s_t1
         t += 1
 
         # save progress every 10000 iterations
-        if t % 10000 == 0:
-            saver.save(sess, 'saved_networks/' + GAME + '-dqn', global_step = t)
+        #if t % 10000 == 0:
+         
+#   saver.save(sess, 'saved_networks/' + GAME + '-dqn', global_step = t)
 
         # print info
         state = ""
@@ -199,6 +211,7 @@ def playGame():
     sess = tf.InteractiveSession()
     s, readout, h_fc1 = createNetwork()
     trainNetwork(s, readout, h_fc1, sess)
+    
 
 def main():
     playGame()
